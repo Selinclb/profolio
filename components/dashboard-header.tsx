@@ -29,19 +29,25 @@ export function DashboardHeader() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Bildirimleri getir
+    let isMounted = true;
+
     const fetchNotifications = async () => {
       try {
         const response = await fetch("/api/notifications")
-        if (response.ok) {
+        if (response.ok && isMounted) {
           const data = await response.json()
           setNotifications(data)
           setUnreadCount(data.filter((n: Notification) => !n.isRead).length)
         }
       } catch (error) {
         console.error("Bildirimler alınamadı:", error)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
@@ -49,7 +55,11 @@ export function DashboardHeader() {
 
     // Periyodik olarak bildirimleri güncelle
     const interval = setInterval(fetchNotifications, 30000) // 30 saniyede bir
-    return () => clearInterval(interval)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   const handleLogout = async () => {
