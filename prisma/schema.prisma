@@ -1,0 +1,193 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Bildirimler tablosu
+model Notification {
+  id        String   @id @default(nanoid())
+  title     String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@map("notifications")
+}
+
+// Kullanıcılar tablosu
+model User {
+  id        String   @id @default(nanoid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  teamMemberships TeamMember[]
+  projects        Project[]
+  projectMembers  ProjectMember[]
+  assignedTasks   Task[]          @relation("AssignedTasks")
+  createdTasks    Task[]          @relation("CreatedTasks")
+  sentMessages    Message[]       @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  sessions        Session[]
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+// Takımlar tablosu
+model Team {
+  id          String   @id @default(nanoid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // İlişkiler
+  members TeamMember[]
+
+  @@map("teams")
+}
+
+// Takım üyeleri tablosu
+model TeamMember {
+  id        String   @id @default(nanoid())
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @map("user_id")
+  team   Team   @relation(fields: [teamId], references: [id])
+  teamId String @map("team_id")
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+// Projeler tablosu
+model Project {
+  id          String   @id @default(nanoid())
+  name        String
+  description String
+  dueDate     DateTime @map("due_date")
+  progress    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  user          User            @relation(fields: [userId], references: [id])
+  userId        String          @map("user_id")
+  members       ProjectMember[]
+  tasks         Task[]
+  projectStages ProjectStage[]
+
+  @@map("projects")
+}
+
+// Proje üyeleri tablosu
+model ProjectMember {
+  id        String   @id @default(nanoid())
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String  @map("project_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// Görevler tablosu
+model Task {
+  id          String   @id @default(nanoid())
+  title       String
+  description String?
+  status      String   @default("pending")
+  dueDate     DateTime? @map("due_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String  @map("project_id")
+  assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  assignedToId String? @map("assigned_to_id")
+  createdBy    User    @relation("CreatedTasks", fields: [createdById], references: [id])
+  createdById  String  @map("created_by_id")
+
+  @@map("tasks")
+}
+
+// Oturumlar tablosu
+model Session {
+  id        String   @id @default(nanoid())
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  @@map("sessions")
+}
+
+// Mesajlar tablosu
+model Message {
+  id        String   @id @default(nanoid())
+  content   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // İlişkiler
+  sender    User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  String @map("sender_id")
+  receiver  User   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  receiverId String @map("receiver_id")
+
+  @@map("messages")
+}
+
+// Proje aşamaları tablosu
+model ProjectStage {
+  id          String   @id @default(nanoid())
+  name        String
+  description String?
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // İlişkiler
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String  @map("project_id")
+
+  @@map("project_stages")
+}
+
+// Sistem ayarları tablosu
+model SystemSetting {
+  id        String   @id @default(nanoid())
+  category  String
+  key       String
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([category, key])
+  @@map("system_settings")
+} 
